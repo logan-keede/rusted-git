@@ -22,7 +22,7 @@ use std::fs::File;
 fn compute_sha1_hash(file_path: &str) -> io::Result<String> {
     let mut hasher = Sha1::new();
     let mut file = fs::File::open(file_path)?;
-    let n = io::copy(&mut file, &mut hasher)?;
+    let _n = io::copy(&mut file, &mut hasher)?;
     let hash = hasher.finalize();
 
     // Format the hash as a hexadecimal string
@@ -39,24 +39,25 @@ fn read_cat_file(sha: &String){
     let mut decoder= ZlibDecoder::new(sha_file.unwrap());
     let mut decompressed_data = String::new();
     let _ = decoder.read_to_string(&mut decompressed_data);
-    print!("{}", &decompressed_data[8..]);
+    if &decompressed_data[0..4] == "tree" { print!("{}", &decompressed_data[8..]);}
+    else {print!("{}", &decompressed_data[8..]);}
 }
 
 fn hash_object(file: &String){
     let file_path = PathBuf::from(file);
     let sha = compute_sha1_hash(file).unwrap();
-
+    print!("{}", sha);
     let sha_file_path = PathBuf::from(format!(".git/objects/{}/{}", &sha[0..2], &sha[2..]));
     if let Some(parent) = sha_file_path.parent() {
-        fs::create_dir_all(parent);  // Creates directories if they don't exist
+        let _ = fs::create_dir_all(parent);  // Creates directories if they don't exist
     }
 
     let sha_file = File::create(&sha_file_path).unwrap();
     let mut encoder= ZlibEncoder::new(sha_file, Compression::default());
     let to_write = fs::read_to_string(file_path).unwrap();
     let content = format!("blob {}\0{}", to_write.len(), to_write);
-    encoder.write_all(content.as_bytes());
-    encoder.finish();
+    let _ = encoder.write_all(content.as_bytes());
+    let _ = encoder.finish();
     // let compressed_data = encoder.finish().unwrap();
 
     // sha_file.unwrap().write_all(compressed_data.as_slice()).unwrap();
