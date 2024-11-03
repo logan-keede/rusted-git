@@ -14,7 +14,7 @@ fn read_cat_file(sha: &String){
     let mut decoder= ZlibDecoder::new(sha_file.unwrap());
     let mut decompressed_data = String::new();
     let _ = decoder.read_to_string(&mut decompressed_data);
-    println!("{}", decompressed_data);
+    print!("{}", decompressed_data);
 }
 
 fn main() {
