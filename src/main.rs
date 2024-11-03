@@ -8,8 +8,7 @@ fn main() {
     eprintln!("Logs from your program will appear here!");
 
     // Uncomment this block to pass the first stage
-    let args: Vec<Strgit commit -am "[any message]"
-        git push origin mastering> = env::args().collect();
+    let args: Vec<String> = env::args().collect();
     if args[1] == "init" {
         fs::create_dir(".git").unwrap();
         fs::create_dir(".git/objects").unwrap();
