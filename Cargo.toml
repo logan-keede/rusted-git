@@ -12,3 +12,4 @@ flate2 = "1.0.34"
 sha1 = "0.10.6"
 thiserror = "1.0.38"
 hex = "0.4.3"                             # error handling
+rustfmt = "0.10.0"
