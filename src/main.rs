@@ -61,10 +61,7 @@ fn read_tree(null_indices: Vec<usize>, decompressed_data: Vec<u8>) {
         temp = &decompressed_data[null_indices[i] + 1..null_indices[i] + 21];
         // println!("{}", String::from_utf8_lossy(temp));
         let hex_string = hex::encode(&temp);
-        // object_types.push(determine_type(&hex_string));
         hashes.push(hex_string);
-
-        // println!("{}", hex_string);
 
         if i != null_indices.len() - 1 {
             temp = &decompressed_data[null_indices[i] + 21..null_indices[i + 1]];
@@ -105,8 +102,7 @@ fn read_cat_file(sha: &String) {
 
     let _ = decoder.read_to_end(&mut decompressed_data);
 
-    // let bin = String::from_utf8_lossy(&decompressed_data);
-    // let parts = bin.split("\0").collect::<Vec<&str>>();
+
     let mut null_indices: Vec<usize> = Vec::new(); // Initialize an empty vector to store indices
     let mut index = 0;
     while index < decompressed_data.len() {
@@ -127,9 +123,9 @@ fn read_cat_file(sha: &String) {
         let joined = &decompressed_data[null_indices[0] + 1..];
         println!("{}", String::from_utf8_lossy(joined));
     } else if temp == String::from("blob") {
-        let joined = &decompressed_data[null_indices[0] + 1..];
+        let joined = &decompressed_data[0 ..];
 
-        println!("{}", String::from_utf8_lossy(joined));
+        println!("{} {}", String::from_utf8(joined.to_vec()).unwrap(), joined.len());
     }
 }
 
@@ -137,32 +133,38 @@ fn hash_object(file: &String) -> Vec<u8> {
     let file_path = PathBuf::from(file);
 
     let to_write = fs::read_to_string(file_path).unwrap();
-    let content = format!("blob {}\0{}", to_write.len(), to_write);
-    let mut encoder = ZlibEncoder::new(vec![], Compression::default());
 
-    // let content = content.as_bytes();
+    let normalized_content = to_write.replace("\r\n", "\n");
+
+    let content = format!("blob {}\0{}", normalized_content.len(), normalized_content);
+    let mut hello: Vec<u8> = Vec::new();
+    let mut encoder = ZlibEncoder::new(&mut hello, Compression::default());
+
     let _ = encoder.write_all(content.as_bytes());
     let _ = encoder.finish();
+
     let sha_pure = compute_sha1_bytes(&content.into_bytes());
     let sha = compute_hash_hex(&sha_pure);
     println!("{}", sha);
+
     let sha_file_path = PathBuf::from(format!(".git/objects/{}/{}", &sha[0..2], &sha[2..]));
-    return sha_pure;
+
+    if let Some(parent_dir) = sha_file_path.parent() {
+        fs::create_dir_all(parent_dir).unwrap();
+    }
+    fs::write(&sha_file_path, &hello);
+    sha_pure
 }
 
-fn write_tree(dir: &Path) -> io::Result<()> {
+fn write_tree(dir: &Path) -> Vec<u8> {
     let mut mods = Vec::new();
     let mut names = Vec::new();
     let mut hashes = Vec::new();
-    // print!("{:?}", fs::read_dir(dir)?);
 
     if dir.is_dir() {
-        for entry in fs::read_dir(dir)? {
-            println!("{:?}", entry?)
-        }
 
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
+        for entry in fs::read_dir(dir).unwrap() {
+            let entry = entry.unwrap();
 
             let path = entry.path();
             if path.is_dir() {
@@ -190,8 +192,9 @@ fn write_tree(dir: &Path) -> io::Result<()> {
         }
     }
 
+    let mut header = Vec::new();
     let mut write = Vec::new();
-    // write.extend(mods);
+
     for ind in 0..mods.len() {
         write.append(&mut mods[ind]);
         write.push(32);
@@ -199,19 +202,26 @@ fn write_tree(dir: &Path) -> io::Result<()> {
         write.push(0);
         write.append(&mut hashes[ind]);
     }
+    // let mut head = format!("tree {}\0", write.len()).as_bytes();
+    header.append(&mut format!("tree {}\0", write.len()).as_bytes().to_vec());
+    header.append(&mut write);
+    println!("{:?}", String::from_utf8_lossy(&header));
 
-    println!("{:?}, {:?}", String::from_utf8_lossy(&write), mods.len());
-    print!("{:?}", compute_hash_hex(&compute_sha1_bytes(&write)));
-    let converted = String::from_utf8_lossy(&write)
-        .to_string()
-        .bytes()
-        .into_iter()
-        .collect::<Vec<u8>>();
-    for x in 0..write.len() {
-        println!("{} {}", converted[x], write[x]);
-    }
+    let mut hello: Vec<u8> = Vec::new();
+    let mut encoder = ZlibEncoder::new(&mut hello, Compression::default());
 
-    Ok(())
+    // let content = content.as_bytes();
+    let _ = encoder.write_all(&header);
+    let _ = encoder.finish();
+    let sha_pure = compute_sha1_bytes(&header);
+    let sha = compute_hash_hex(&sha_pure);
+    println!("{}", sha);
+    let sha_file_path = PathBuf::from(format!(".git/objects/{}/{}", &sha[0..2], &sha[2..]));
+    println!("{:?}", sha_file_path);
+
+    let _ = fs::write(&sha_file_path, &hello);
+
+    return sha_pure;
 }
 
 fn main() {

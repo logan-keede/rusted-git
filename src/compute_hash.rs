@@ -28,7 +28,7 @@ use std::path::Path;
 pub fn compute_sha1_hash(file_path: &str) -> Vec<u8> {
     let mut hasher = Sha1::new();
     let mut file = fs::File::open(file_path).unwrap();
-    let _n = io::copy(&mut file, &mut hasher).unwrap();
+    let _n = io::copy(&mut file, &mut hasher);
     let hash = hasher.finalize().to_vec();
     return hash;
 }
